@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: driply-scheduler
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: FIREBASE_SERVICE_ACCOUNT_KEY
+        sync: false
+      - key: PORT
+        value: 3000
