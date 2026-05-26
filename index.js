@@ -10,8 +10,9 @@ app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
 function uidFromReq(req) {
-  const uid = req.headers['x-uid'];
-  if (!uid) throw new Error('Missing x-uid header');
+  let uid = req.headers['x-uid'];
+  if (!uid) uid = req.query.uid;
+  if (!uid) throw new Error('Missing x-uid header or ?uid= query param');
   return uid;
 }
 
