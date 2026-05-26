@@ -164,6 +164,21 @@ app.post('/api/send', async (req, res) => {
   }
 });
 
+app.post('/api/status', async (req, res) => {
+  try {
+    const uid = uidFromReq(req);
+    const { data } = req.body;
+    if (!data || typeof data !== 'object') {
+      return res.status(400).json({ error: 'Missing data object' });
+    }
+    await fireDb().ref(`users/${uid}`).update(data);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[STATUS] Error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/cancel/:campaignId', async (req, res) => {
   try {
     const uid = uidFromReq(req);
