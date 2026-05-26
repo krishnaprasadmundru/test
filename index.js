@@ -185,7 +185,15 @@ app.post('/api/cancel/:campaignId', async (req, res) => {
     const uid = uidFromReq(req);
     const { campaignId } = req.params;
     await fireDb().ref(`users/${uid}/campaigns/${campaignId}`).update({ cancelled: true });
-    console.log(`[CANCEL] ${uid} / ${campaignId}`);
+    // ⭐ PHASE 2 FIX: Broadcast CANCEL_CAMPAIGN to extension via /trigger so it stops
+    // queued/waiting tasks immediately instead of letting them send.
+    const cancelSignalId = `cancel_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    await fireDb().ref(`users/${uid}/trigger/${cancelSignalId}`).set({
+      action: 'CANCEL_CAMPAIGN',
+      cId: campaignId,
+      at: Date.now(),
+    });
+    console.log(`[CANCEL] ${uid} / ${campaignId} (signal broadcast to extension)`);
     res.json({ ok: true });
   } catch (e) {
     console.error('[CANCEL] Error:', e.message);
