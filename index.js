@@ -208,6 +208,53 @@ app.get('/api/pending/:uid', async (req, res) => {
   }
 });
 
+app.get('/api/read', async (req, res) => {
+  try {
+    const uid = uidFromReq(req);
+    const rpath = req.query.path;
+    if (!rpath) return res.status(400).json({ error: 'Missing path query param' });
+    const clean = rpath.replace(/[^a-zA-Z0-9_\/-]/g, '');
+    const snap = await fireDb().ref(`users/${uid}/${clean}`).once('value');
+    res.json({ ok: true, data: snap.val() ?? null });
+  } catch (e) {
+    console.error('[READ] Error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/delete-path', async (req, res) => {
+  try {
+    const uid = uidFromReq(req);
+    const rpath = req.body.path;
+    if (!rpath) return res.status(400).json({ error: 'Missing path' });
+    const clean = rpath.replace(/[^a-zA-Z0-9_\/-]/g, '');
+    await fireDb().ref(`users/${uid}/${clean}`).remove();
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[DELETE] Error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/write', async (req, res) => {
+  try {
+    const uid = uidFromReq(req);
+    const { path, data, method } = req.body;
+    if (!path) return res.status(400).json({ error: 'Missing path' });
+    const clean = path.replace(/[^a-zA-Z0-9_\/-]/g, '');
+    const ref = fireDb().ref(`users/${uid}/${clean}`);
+    if (method === 'PUT') {
+      await ref.set(data);
+    } else {
+      await ref.update(data);
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[WRITE] Error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, uptime: process.uptime() });
 });
