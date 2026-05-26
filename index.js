@@ -177,6 +177,10 @@ app.post('/api/cancel/:campaignId', async (req, res) => {
   }
 });
 
+app.get('/', (req, res) => {
+  res.json({ service: 'Driply Scheduler', ok: true, docs: '/api/health' });
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, uptime: process.uptime() });
 });
