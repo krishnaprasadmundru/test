@@ -196,6 +196,18 @@ app.get('/', (req, res) => {
   res.json({ service: 'Driply Scheduler', ok: true, docs: '/api/health' });
 });
 
+app.get('/api/pending/:uid', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const snap = await fireDb().ref(`users/${uid}/tasks`).orderByChild('status').equalTo('pending').once('value');
+    const tasks = snap.val();
+    res.json({ ok: true, tasks: tasks || {} });
+  } catch (e) {
+    console.error('[PENDING] Error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, uptime: process.uptime() });
 });
