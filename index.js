@@ -19,6 +19,7 @@ function uidFromReq(req) {
 app.post('/api/send', async (req, res) => {
   try {
     const uid = uidFromReq(req);
+    console.log(`[API/SEND] Received request from uid=${uid.substring(0,8)}... | person=${req.body.personName || '?'} | type=${req.body.followupType || 'intro'}`);
     const {
       url, message, subject, degree, followupType, campaignId,
       personName, personTitle, campaignName,
