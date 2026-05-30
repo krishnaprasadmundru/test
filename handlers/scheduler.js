@@ -69,6 +69,45 @@ async function handleTaskStatus(uid, taskId, task) {
 
     case 'processing': {
       console.log(`[SCHEDULER] Task processing (inspected): ${uid}/${taskId} (${task.followupType || 'intro'})`);
+
+      // ── Stuck-task recovery ──
+      // If extension tab was closed mid-send, task stays "processing" forever.
+      // Server sets a timer: if still "processing" after ACK_TIMEOUT_MS,
+      // reset it to "failed" so retry/cascade logic kicks in.
+      const processingStartedAt = task.updatedAt || task.processingAt || Date.now();
+      const elapsed = Date.now() - processingStartedAt;
+
+      if (elapsed >= ACK_TIMEOUT_MS) {
+        // Already past timeout — reset immediately
+        console.log(`[STUCK-RECOVERY] ${uid}/${taskId} stuck in processing for ${Math.round(elapsed / 1000)}s — resetting to failed now`);
+        await db().ref(`users/${uid}/tasks/${taskId}`).update({
+          status: 'failed',
+          error: 'stuck_processing_timeout',
+          failedAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+      } else {
+        // Set a delayed check
+        const remainingMs = ACK_TIMEOUT_MS - elapsed;
+        console.log(`[STUCK-RECOVERY] ${uid}/${taskId} — will check again in ${Math.round(remainingMs / 1000)}s`);
+        setTimeout(async () => {
+          try {
+            const snap = await db().ref(`users/${uid}/tasks/${taskId}`).once('value');
+            const current = snap.val();
+            if (current && current.status === 'processing') {
+              console.log(`[STUCK-RECOVERY] ${uid}/${taskId} STILL stuck after ${ACK_TIMEOUT_MS / 1000}s — resetting to failed`);
+              await db().ref(`users/${uid}/tasks/${taskId}`).update({
+                status: 'failed',
+                error: 'stuck_processing_timeout',
+                failedAt: Date.now(),
+                updatedAt: Date.now(),
+              });
+            }
+          } catch (e) {
+            console.warn(`[STUCK-RECOVERY] Timer check failed:`, e.message);
+          }
+        }, remainingMs);
+      }
       break;
     }
 
