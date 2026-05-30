@@ -246,6 +246,22 @@ async function handleTaskStatus(uid, taskId, task) {
           triggerPatch.scheduledAt = task.retryAt;
         }
         await db().ref(`users/${uid}/trigger/${taskId}`).update(triggerPatch).catch(() => {});
+
+        // Also update progress card step status back to 'queued' so it doesn't show 'Sending' while waiting to retry!
+        const pk = task.pk || getPersonKey(task.url, task.createdAt);
+        if (pk) {
+          const ft = task.followupType || 'intro';
+          const stField = ft === 'intro' || ft === 'cr' ? 'i_st' : ft === 'f1' ? 'f1_st' : ft === 'f2' ? 'f2_st' : ft === 'inmail' ? 'im_st' : null;
+          if (stField) {
+            const progressPatch = {};
+            progressPatch[`trigger_progress/${pk}/${stField}`] = 'queued';
+            if (task.retryAt) {
+              const sAtField = ft === 'intro' || ft === 'cr' ? 'i_sAt' : ft === 'f1' ? 'f1_sAt' : ft === 'f2' ? 'f2_sAt' : ft === 'inmail' ? 'im_sAt' : null;
+              if (sAtField) progressPatch[`trigger_progress/${pk}/${sAtField}`] = task.retryAt;
+            }
+            await db().ref(`users/${uid}`).update(progressPatch).catch(() => {});
+          }
+        }
       }
       break;
     }
