@@ -172,18 +172,41 @@ async function handleTaskStatus(uid, taskId, task) {
           accepted: wasAccepted,
         });
 
-        // Delete all triggers in the sequence
-        const deleteIds = [];
-        if (prog.i_id || prog.intro_id) deleteIds.push(prog.i_id || prog.intro_id);
-        if (prog.cr_id) deleteIds.push(prog.cr_id);
-        if (prog.f1_id) deleteIds.push(prog.f1_id);
-        if (prog.f2_id) deleteIds.push(prog.f2_id);
-        if (prog.im_id) deleteIds.push(prog.im_id);
-        deleteIds.push(taskId);
+        // Delete all triggers and tasks in the sequence matching the pk
+        try {
+          const triggersSnap = await db().ref(`users/${uid}/trigger`).once('value');
+          const allTriggers = triggersSnap.val() || {};
+          const deleteTriggerPromises = [];
+          for (const [key, t] of Object.entries(allTriggers)) {
+            if (t && t.pk === pk) {
+              deleteTriggerPromises.push(db().ref(`users/${uid}/trigger/${key}`).remove().catch(() => {}));
+            }
+          }
+          await Promise.all(deleteTriggerPromises);
+        } catch (e) {
+          console.warn(`[SCHEDULER] Trigger batch cleanup failed:`, e.message);
+        }
 
-        await Promise.all(deleteIds.map(id => db().ref(`users/${uid}/trigger/${id}`).remove().catch(() => {})));
+        try {
+          const tasksSnap = await db().ref(`users/${uid}/tasks`).once('value');
+          const allTasks = tasksSnap.val() || {};
+          const deleteTaskPromises = [];
+          for (const [key, t] of Object.entries(allTasks)) {
+            if (t && t.pk === pk) {
+              deleteTaskPromises.push(db().ref(`users/${uid}/tasks/${key}`).remove().catch(() => {}));
+            }
+          }
+          await Promise.all(deleteTaskPromises);
+        } catch (e) {
+          console.warn(`[SCHEDULER] Tasks batch cleanup failed:`, e.message);
+        }
+
+        // Clean current task just in case it doesn't have pk field
+        await db().ref(`users/${uid}/trigger/${taskId}`).remove().catch(() => {});
+        await db().ref(`users/${uid}/tasks/${taskId}`).remove().catch(() => {});
+
         await progressRef.remove();
-        console.log(`[SCHEDULER] Cleared sequence and trigger progress for ${pk}`);
+        console.log(`[SCHEDULER] Cleared sequence tasks, triggers, and progress for ${pk}`);
       }
       break;
     }
