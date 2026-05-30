@@ -291,9 +291,8 @@ async function handleTaskStatus(uid, taskId, task) {
         console.warn(`[SCHEDULER] Failed to delete trigger for failed_permanent task:`, e.message);
       }
 
-      // ── Cascade Cancel F1/F2 on Intro failure ──
-      const is1stDegree = String(task.degree || '').toLowerCase().includes('1st');
-      if (isIntro && !is1stDegree) {
+      // ── Cascade Cancel F1/F2 on Intro failure (for all degrees) ──
+      if (isIntro) {
         console.log(`[CASCADE-CANCEL] Cancelling followups since initial task failed for ${task.url}`);
         const tasksSnap = await db().ref(`users/${uid}/tasks`).once('value');
         const allTasks = tasksSnap.val() || {};
