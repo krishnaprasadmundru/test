@@ -63,45 +63,12 @@ async function handleTaskStatus(uid, taskId, task) {
 
   switch (task.status) {
     case 'pending': {
-      console.log(`[SCHEDULER] Task pending: ${uid}/${taskId}`);
-      const pk = task.pk || getPersonKey(task.url, task.createdAt);
-      if (pk) {
-        const ft = task.followupType || 'intro';
-        const stField = ft === 'intro' || ft === 'cr' ? 'i_st' : ft === 'f1' ? 'f1_st' : ft === 'f2' ? 'f2_st' : ft === 'inmail' ? 'im_st' : null;
-        if (stField) {
-          const patch = {};
-          patch[`trigger_progress/${pk}/${stField}`] = 'queued';
-          if (task.scheduledAt) {
-            const sAtField = ft === 'intro' || ft === 'cr' ? 'i_sAt' : ft === 'f1' ? 'f1_sAt' : ft === 'f2' ? 'f2_sAt' : ft === 'inmail' ? 'im_sAt' : null;
-            if (sAtField) patch[`trigger_progress/${pk}/${sAtField}`] = task.scheduledAt;
-          }
-          await db().ref(`users/${uid}`).update(patch);
-        }
-      }
-      // Auto-mirror queued/scheduled status to corresponding trigger
-      const triggerPatch = { st: 'queued', updatedAt: Date.now() };
-      if (task.scheduledAt) {
-        triggerPatch.sAt = task.scheduledAt;
-        triggerPatch.scheduledAt = task.scheduledAt;
-      }
-      await db().ref(`users/${uid}/trigger/${taskId}`).update(triggerPatch).catch(() => {});
+      console.log(`[SCHEDULER] Task pending (inspected): ${uid}/${taskId} (${task.followupType || 'intro'})`);
       break;
     }
 
     case 'processing': {
-      console.log(`[SCHEDULER] Task processing: ${uid}/${taskId}`);
-      const pk = task.pk || getPersonKey(task.url, task.createdAt);
-      if (pk) {
-        const ft = task.followupType || 'intro';
-        const stField = ft === 'intro' || ft === 'cr' ? 'i_st' : ft === 'f1' ? 'f1_st' : ft === 'f2' ? 'f2_st' : ft === 'inmail' ? 'im_st' : null;
-        if (stField) {
-          const patch = {};
-          patch[`trigger_progress/${pk}/${stField}`] = 'processing';
-          await db().ref(`users/${uid}`).update(patch);
-        }
-      }
-      // Auto-mirror processing status to corresponding trigger
-      await db().ref(`users/${uid}/trigger/${taskId}`).update({ st: 'processing', status: 'processing', updatedAt: Date.now() }).catch(() => {});
+      console.log(`[SCHEDULER] Task processing (inspected): ${uid}/${taskId} (${task.followupType || 'intro'})`);
       break;
     }
 
