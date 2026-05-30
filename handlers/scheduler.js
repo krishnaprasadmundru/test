@@ -70,6 +70,31 @@ async function handleTaskStatus(uid, taskId, task) {
     case 'processing': {
       console.log(`[SCHEDULER] Task processing (inspected): ${uid}/${taskId} (${task.followupType || 'intro'})`);
 
+      const pk = task.pk || getPersonKey(task.url, task.createdAt);
+      const ft = task.followupType || 'intro';
+
+      // 1. Update trigger st/status to 'processing' in RTDB
+      await db().ref(`users/${uid}/trigger/${taskId}`).update({
+        st: 'processing',
+        status: 'processing',
+        updatedAt: Date.now()
+      }).catch((e) => {
+        console.warn(`[SCHEDULER] Failed to update trigger status to processing:`, e.message);
+      });
+
+      // 2. Update progress card step status to 'sending' in RTDB
+      if (pk) {
+        const stField = ft === 'intro' || ft === 'cr' ? 'i_st' : ft === 'f1' ? 'f1_st' : ft === 'f2' ? 'f2_st' : ft === 'inmail' ? 'im_st' : null;
+        if (stField) {
+          const progressPatch = {};
+          progressPatch[`trigger_progress/${pk}/${stField}`] = 'sending';
+          progressPatch[`trigger_progress/${pk}/updatedAt`] = Date.now();
+          await db().ref(`users/${uid}`).update(progressPatch).catch((e) => {
+            console.warn(`[SCHEDULER] Failed to update progress to sending:`, e.message);
+          });
+        }
+      }
+
       // ── Stuck-task recovery ──
       // If extension tab was closed mid-send, task stays "processing" forever.
       // Server sets a timer: if still "processing" after ACK_TIMEOUT_MS,
