@@ -20,9 +20,12 @@ function getPersonKey(url, createdAt) {
 
 export function startScheduler() {
   const rootRef = db().ref('users');
+  const watchedUsers = new Set();
 
   rootRef.on('child_added', (snap) => {
     const uid = snap.key;
+    if (watchedUsers.has(uid)) return;
+    watchedUsers.add(uid);
     watchUserTasks(uid);
   });
 
@@ -31,6 +34,8 @@ export function startScheduler() {
     if (!snap.val()) return;
     snap.forEach((child) => {
       const uid = child.key;
+      if (watchedUsers.has(uid)) return;
+      watchedUsers.add(uid);
       watchUserTasks(uid);
     });
   });
