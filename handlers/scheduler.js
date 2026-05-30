@@ -95,9 +95,13 @@ async function handleTaskStatus(uid, taskId, task) {
 
       await db().ref(`users/${uid}`).update(progressPatch);
 
-      // ── 2. Delete completed /trigger/{taskId} trigger ──
-      await db().ref(`users/${uid}/trigger/${taskId}`).remove().catch(() => {});
-      console.log(`[SCHEDULER] Deleted completed trigger: ${uid}/trigger/${taskId}`);
+      // ── Double-check and delete corresponding trigger in RTDB ──
+      try {
+        await db().ref(`users/${uid}/trigger/${taskId}`).remove();
+        console.log(`[SCHEDULER] Double-checked and removed trigger for completed task: ${uid}/${taskId}`);
+      } catch (e) {
+        console.warn(`[SCHEDULER] Failed to delete trigger for completed task:`, e.message);
+      }
 
       // Follow-up generation (F1 & F2) and activation is coordinated on the extension side.
       // The server scheduler acts as an inspector, monitoring status changes and archiving history.
@@ -224,8 +228,13 @@ async function handleTaskStatus(uid, taskId, task) {
       if (stField) failedPatch[`trigger_progress/${pk}/${stField}`] = 'failed';
       await db().ref(`users/${uid}`).update(failedPatch);
 
-      // Clean trigger
-      await db().ref(`users/${uid}/trigger/${taskId}`).remove().catch(() => {});
+      // ── Double-check and delete corresponding trigger in RTDB ──
+      try {
+        await db().ref(`users/${uid}/trigger/${taskId}`).remove();
+        console.log(`[SCHEDULER] Double-checked and removed trigger for failed_permanent task: ${uid}/${taskId}`);
+      } catch (e) {
+        console.warn(`[SCHEDULER] Failed to delete trigger for failed_permanent task:`, e.message);
+      }
 
       // ── Cascade Cancel F1/F2 on Intro failure ──
       const is1stDegree = String(task.degree || '').toLowerCase().includes('1st');
